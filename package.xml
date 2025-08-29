@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypemap="urn:x-package-format3"?>
+<package format="3">
+  <name>geodetic_points</name>
+  <version>0.1.0</version>
+  <description>Visual-Inertial Odometry (VIO) + GPS aided navigation and geodetic point localization system for ROS2</description>
+
+  <maintainer email="user@example.com">User</maintainer>
+
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>python3-pyproj</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>
