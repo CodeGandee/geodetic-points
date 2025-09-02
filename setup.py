@@ -26,7 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'globe_marker_node = geodetic_points.globe_marker_node:main',
-            'gps_on_globe_node = geodetic_points.gps_on_globe_node:main',
+            'gps_on_globe_node = geodetic_points.gps_on_globe_node:main'
         ],
     },
 )
