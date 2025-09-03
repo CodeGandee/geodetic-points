@@ -144,6 +144,12 @@ def generate_launch_description():
         description='Camera roll angle in radians (rotation around viewing axis)'
     )
     
+    camera_frame_id_arg = DeclareLaunchArgument(
+        'camera_frame_id',
+        default_value='camera_view',
+        description='TF frame ID for camera (empty string disables camera TF publishing)'
+    )
+    
     # ============================================================================
     # DATA REPLAY PARAMETERS
     # ============================================================================
@@ -198,6 +204,7 @@ def generate_launch_description():
         camera_yaw_arg,
         camera_pitch_arg,
         camera_roll_arg,
+        camera_frame_id_arg,
         
         # Data replay parameters
         bag_file_arg,
@@ -251,6 +258,7 @@ def generate_launch_description():
                 'camera_yaw': LaunchConfiguration('camera_yaw'),
                 'camera_pitch': LaunchConfiguration('camera_pitch'),
                 'camera_roll': LaunchConfiguration('camera_roll'),
+                'camera_frame_id': LaunchConfiguration('camera_frame_id'),
                 
                 # Debug parameters
                 'enable_debug_output': LaunchConfiguration('enable_debug_output')

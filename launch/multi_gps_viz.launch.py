@@ -38,7 +38,7 @@ def generate_launch_description():
     # CONSTANTS AND FILE PATHS
     # ============================================================================
     pkg_share = get_package_share_directory('geodetic_points')
-    rviz_config_file = os.path.join(pkg_share, 'rviz', 'globe_viz.rviz')
+    rviz_config_file = os.path.join(pkg_share, 'rviz', 'globe_multi_viz.rviz')
     default_mesh_resource = 'package://geodetic_points/meshes/earth.dae'
     
     # GPS Source Configurations
@@ -193,6 +193,12 @@ def generate_launch_description():
         description='Camera roll angle in radians for primary GPS (rotation around viewing axis)'
     )
     
+    camera_frame_id_arg = DeclareLaunchArgument(
+        'camera_frame_id',
+        default_value='camera_view',
+        description='TF frame ID for camera (primary GPS only, empty string disables camera TF)'
+    )
+    
     # ============================================================================
     # DATA REPLAY PARAMETERS
     # ============================================================================
@@ -246,6 +252,7 @@ def generate_launch_description():
         camera_yaw_arg,
         camera_pitch_arg,
         camera_roll_arg,
+        camera_frame_id_arg,
         
         # Data replay parameters
         bag_file_arg,
@@ -317,6 +324,7 @@ def generate_launch_description():
                 'camera_yaw': LaunchConfiguration('camera_yaw') if is_camera_controller else 0.0,
                 'camera_pitch': LaunchConfiguration('camera_pitch') if is_camera_controller else 0.0,
                 'camera_roll': LaunchConfiguration('camera_roll') if is_camera_controller else 0.0,
+                'camera_frame_id': LaunchConfiguration('camera_frame_id') if is_camera_controller else '',
                 
                 # Debug parameters (reduced for non-primary to avoid spam)
                 'enable_debug_output': LaunchConfiguration('enable_debug_output') if is_camera_controller else False
@@ -324,9 +332,8 @@ def generate_launch_description():
             remappings=[
                 # Unique topic names to prevent conflicts
                 ('gps_globe_points', f'gps_{config["name"]}_points'),
-                ('gps_globe_trail', f'gps_{config["name"]}_trail'),
-                # Only primary GPS publishes camera TF
-                ('camera_view', 'camera_view' if is_camera_controller else f'camera_view_{config["name"]}_disabled')
+                ('gps_globe_trail', f'gps_{config["name"]}_trail')
+                # Camera TF frame is now controlled by camera_frame_id parameter
             ],
             condition=IfCondition('true'),  # Always launch all GPS nodes
             output='screen'

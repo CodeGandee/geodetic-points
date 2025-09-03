@@ -88,3 +88,9 @@ geodetic-points/launch/globe_viz.launch.py这个脚本现有的功能要改变�
 
 /home/intellif/zlc_workspace/geodetic-points/launch/globe_viz.launch.py
 
+
+
+geodetic-points/geodetic_points/gps_on_globe_node.py中
+
+
+

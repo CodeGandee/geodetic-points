@@ -75,6 +75,7 @@ class GpsOnGlobeNode(Node):
         self.declare_parameter('camera_yaw', 2.0454)      # Camera yaw angle in radians (horizontal rotation)
         self.declare_parameter('camera_pitch', 1.4304)    # Camera pitch angle in radians (vertical tilt)
         self.declare_parameter('camera_roll', 0.0)        # Camera roll angle in radians (rotation around viewing axis)
+        self.declare_parameter('camera_frame_id', 'camera_view')  # TF frame ID for camera (empty string disables camera TF)
         self.declare_parameter('marker_calc_frequency', 2.0)  # Frequency for marker size calculation (Hz)
 
         self.frame_id = self.get_parameter('frame_id').value
@@ -114,6 +115,7 @@ class GpsOnGlobeNode(Node):
         self.camera_yaw = float(self.get_parameter('camera_yaw').value)
         self.camera_pitch = float(self.get_parameter('camera_pitch').value)
         self.camera_roll = float(self.get_parameter('camera_roll').value)
+        self.camera_frame_id = str(self.get_parameter('camera_frame_id').value)
         self.marker_calc_frequency = float(self.get_parameter('marker_calc_frequency').value)
         
 
@@ -203,6 +205,7 @@ class GpsOnGlobeNode(Node):
         self.get_logger().info(f"Camera Angles - Yaw: {self.camera_yaw:.4f} rad ({math.degrees(self.camera_yaw):.1f}°)")
         self.get_logger().info(f"                Pitch: {self.camera_pitch:.4f} rad ({math.degrees(self.camera_pitch):.1f}°)")
         self.get_logger().info(f"                Roll: {self.camera_roll:.4f} rad ({math.degrees(self.camera_roll):.1f}°)")
+        self.get_logger().info(f"Camera Frame ID: {self.camera_frame_id} {'(camera TF disabled)' if not self.camera_frame_id else ''}")
         self.get_logger().info(f"Marker Calc Frequency: {self.marker_calc_frequency} Hz")
         if self.enable_debug_output:
             self.get_logger().info("Debug Topics:")
@@ -469,6 +472,10 @@ class GpsOnGlobeNode(Node):
     
     def publish_camera_tf(self):
         """Publish camera transform at configured height above windowed center position"""
+        # Skip camera TF publishing if camera_frame_id is empty or not set
+        if not self.camera_frame_id or not self.camera_frame_id.strip():
+            return
+            
         if not self.has_gps_fix or len(self.camera_window_points) == 0:
             return
         
@@ -482,7 +489,7 @@ class GpsOnGlobeNode(Node):
         t = TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = self.frame_id
-        t.child_frame_id = 'camera_view'
+        t.child_frame_id = self.camera_frame_id
         
         # Set camera position
         t.transform.translation.x = camera_x
