@@ -1,95 +1,203 @@
-# geodetic-points
+# Geodetic Points - VIO+GPS Navigation System
 
-Sketch / architectural scaffold for a future Visual-Inertial Odometry (VIO) + GPS aided navigation and geodetic point localization system built around ROS2. **No production code yet – this repository currently serves as a planning space.**
+A comprehensive **ROS2-based Visual-Inertial Odometry (VIO) + GPS navigation and geodetic point localization system** that provides real-time sensor fusion, 3D Earth visualization, and precise coordinate transformations between local VIO frames and global geodetic coordinates.
 
-## Vision
-Provide a modular ROS2-based pipeline that fuses VIO, IMU, and multi-constellation GNSS to (1) estimate platform pose in a globally referenced frame, (2) geo-register observed 3D feature / object points, and (3) allow annotating & exporting these points ("objects of interest") to mapping platforms (e.g., Google Maps / KML / GeoJSON).
+## 🎯 Project Overview
 
-## Core Objectives (Future)
-1. Sensor Fusion: Tight / loosely coupled integration of VIO and GNSS with robust time synchronization.
-2. Global Pose Estimation: Maintain an ENU + WGS84 representation with confidence / covariance.
-3. 3D Point Observation: Collect triangulated landmarks (from SLAM or depth) and transform them into geodetic coordinates (latitude, longitude, ellipsoidal height).
-4. Object Tagging: Attach semantic labels + attributes to selected points.
-5. Map Export: Produce GeoJSON / KML / CSV deliverables with metadata & uncertainty.
-6. Offline + Live Modes: Support post-processing refinement (smoothing) and real-time streaming.
+This system enables precise integration of VIO (Visual-Inertial Odometry) and GPS data for applications requiring accurate global positioning and trajectory visualization. It transforms local VIO coordinates to Earth-Centered Earth-Fixed (ECEF) coordinates and provides rich 3D visualization capabilities.
 
-## High-Level Architecture (Planned)
+### Key Features
+- 🌍 **Real-time VIO-GPS Calibration**: Time synchronization and spatial alignment between VIO and GPS data
+- 🗺️ **3D Earth Visualization**: Interactive globe with GPS trajectories and VIO point clouds  
+- 📡 **Multi-Topic GPS Support**: Automatic detection and processing of multiple GPS sources
+- 🎥 **Bag Data Processing**: Extract and convert ROS2 bag data to various formats (CSV, JSON, KML)
+- 📊 **Trajectory Analysis**: Comprehensive statistics and quality metrics
+- 🔧 **Modular Architecture**: Configurable nodes for different use cases
+
+## 📁 Project Structure
+
+### 🔧 Core ROS2 Nodes (`geodetic_points/`)
+- **`gps_vio_calibration_node.py`** - GPS-VIO time and spatial calibration engine
+- **`globe_marker_node.py`** - 3D Earth globe visualization with textured mesh
+- **`gps_on_globe_node.py`** - Real-time GPS trajectory visualization on Earth
+- **`vio_earth_visualization_node.py`** - VIO data transformation and Earth coordinate visualization
+- **`topic_monitor_node.py`** - ROS topic monitoring and diagnostics
+
+### 🚀 Launch Files (`launch/`)
+- **`vio_gps_integration.launch.py`** - Complete VIO-GPS system with visualization
+- **`globe_viz.launch.py`** - Earth globe and GPS trajectory visualization
+- **`multi_gps_viz.launch.py`** - Multi-GPS source visualization
+- **`sigle_calibration_node.launch.py`** - Standalone calibration system
+- **`test_calibration_globe.launch.py`** - Testing and validation setup
+
+### 🛠️ Data Processing Tools (`scripts/`)
+- **`bag2kml.py`** - Convert ROS2 bag GPS data to Google Earth KML format
+- **`extract_bag_data.py`** - Unified GPS and odometry data extraction with progress bars
+- **`offline_calibration.py`** - Batch processing and offline calibration
+- **`experiment/extract_bag_data.py`** - Enhanced extraction tool with colorized progress and validation
+
+### 📚 Documentation (`doc/`)
+Technical documentation covering system issues, solutions, and usage guides:
+- System troubleshooting and error analysis
+- Coordinate transformation explanations  
+- Integration guides and best practices
+- Performance optimization techniques
+
+### 📖 Research & Planning (`survey/`, `plan/`)
+- **`survey/`** - Technical research on geodetic libraries and algorithms
+- **`plan/`** - Project roadmap and offline calibration strategies
+
+### 🎨 Visualization Assets (`meshes/`, `textures/`, `rviz/`)
+- **`meshes/earth.dae`** - High-quality 3D Earth model
+- **`textures/`** - Earth surface textures
+- **`rviz/*.rviz`** - Pre-configured RViz visualization setups
+
+### 🔬 Testing & Results (`tests/`, `results/`)
+- **`tests/`** - Comprehensive test suites with performance benchmarks
+- **`results/`** - Sample outputs, screenshots, and trajectory data
+
+### 📝 Logs & Build (`log/`, `build/`, `install/`)
+- **`log/`** - System logs, calibration results, and extraction reports
+- **`build/`** - Colcon build artifacts
+- **`install/`** - ROS2 package installation files
+
+## 🚀 Quick Start
+
+### Prerequisites
+```bash
+# Install ROS2 dependencies
+sudo apt install ros-humble-desktop python3-pip
+
+# Install Python dependencies  
+pip install -r requirements.txt
 ```
-Sensors (Camera(s), IMU, GNSS Receiver, (Optional: Wheel Odometry))
-	│
-	├── Timestamp + Frame Sync Layer
-	│
-	├── VIO Frontend (feature tracking / keyframe selection)
-	│
-	├── VIO Backend (optimization / factor graph)
-	│         │
-	│         └── Local map of landmarks (camera frame / body frame)
-	│
-	├── GNSS Processing (RTK / SBAS / raw carrier-phase ingestion) → ECEF / WGS84
-	│
-	├── Fusion Node (pose graph / EKF / factor graph w/ GNSS priors) → Global Pose (ENU + WGS84)
-	│
-	├── Landmark Geo-Projector (body/camera frame → ENU → WGS84 lat/lon/h)
-	│
-	├── Semantic Annotation Interface (CLI / minimal UI / API)
-	│
-	└── Exporters (GeoJSON / KML / CSV / custom)
+
+### Build & Install
+```bash
+# Build the ROS2 package
+./build.sh
+
+# Source the setup
+source install/setup.bash
 ```
 
-## Data Frames & Transforms (Conceptual)
-- `map`: Global ENU origin (anchored to first high-quality GNSS fix or configured datum point).
-- `odom`: Continuous local frame for VIO integration (may reset / drift; periodically aligned to `map`).
-- `base_link`: Vehicle / body frame.
-- `camera_<i>`: Individual optical frames.
-- `imu_link`: IMU sensor frame.
+### Launch Complete System
+```bash
+# Launch VIO-GPS integration with 3D visualization
+ros2 launch geodetic_points vio_gps_integration.launch.py
 
-Planned transforms: `camera_i -> base_link`, `imu_link -> base_link`, `odom -> map` (with GNSS corrections), dynamic `base_link` pose in both `odom` and `map`.
+# Or launch individual components
+ros2 launch geodetic_points globe_viz.launch.py scale:=10
+```
 
-## Geodetic Conversion Outline
-1. Maintain fused pose in ENU relative to a chosen WGS84 reference (lat0, lon0, h0).
-2. Convert ENU to ECEF (standard rotation + translation).
-3. Convert ECEF to geodetic (iterative or closed-form algorithm).
-4. Attach covariance via Jacobian propagation from local pose & landmark uncertainty.
+### Extract Data from ROS2 Bags
+```bash
+# Extract GPS and odometry data with enhanced progress bars
+python3 scripts/experiment/extract_bag_data.py \
+  --bag_path /path/to/bag \
+  --output_dir results/ \
+  --enable_logging \
+  --format both
 
-## Anticipated ROS2 Packages (Names Tentative)
-- `geo_vio_msgs`: Custom message definitions (geodetic point, annotated object, uncertainty).
-- `vio_core`: VIO frontend/backend wrapper (could wrap existing systems like VINS-Fusion, OKVIS, Kimera-VIO, ORB-SLAM3 plugin style).
-- `gnss_proc`: GNSS parsing + optional RTK client (NTRIP) and conversion utilities.
-- `fusion_layer`: Factor graph / EKF that fuses VIO + GNSS + IMU biases.
-- `geodetic_projection`: ENU/ECEF/WGS84 transformations + covariance propagation.
-- `point_annotation`: Minimal interface (service / topic) for tagging observed points.
-- `export_tools`: GeoJSON / KML / CSV generation.
-- `demo_launch`: Example launch files tying the stack together.
+# Convert GPS trajectories to KML for Google Earth  
+python3 scripts/bag2kml.py \
+  --bag_path /path/to/bag \
+  --output_dir kml_output/
+```
 
-## Minimal Roadmap (Draft)
-| Phase | Focus | Output |
-|-------|-------|--------|
-| 0 | Repo scaffolding | README, LICENSE (MIT) |
-| 1 | Message & data model | `.msg` & `.srv` sketches |
-| 2 | Geodetic utilities | Standalone conversion funcs + tests |
-| 3 | GNSS ingestion | Parse NMEA / RINEX / RTCM minimal subset |
-| 4 | VIO integration | Adapter to external VIO library |
-| 5 | Fusion prototype | Pose alignment & drift correction |
-| 6 | Landmark geo-projection | Landmark → WGS84 w/ covariance |
-| 7 | Annotation + export | CLI / API + GeoJSON/KML outputs |
-| 8 | Packaging & docs | Launch examples, diagrams |
+## 🔧 System Architecture
 
-## Non-Goals (For Now)
-- Full custom VIO implementation (will integrate existing).
-- Advanced multi-sensor SLAM (LiDAR, radar) beyond placeholders.
-- High-end real-time RTK network management.
-- GUI-heavy tooling (keep early interface lightweight / scriptable).
+### Coordinate Frames
+- **`earth`** - ECEF (Earth-Centered Earth-Fixed) global reference
+- **`odom`** - VIO local odometry frame  
+- **`base_link`** - Vehicle/sensor platform frame
+- **`camera_*`** - Individual camera frames
 
-## References / Inspirations (To Curate Later)
-- WGS84 & ECEF conversion formulas.
-- ROS REP 105 (Coordinate Frames) & REP 103 (Units).
-- Existing open-source: VINS-Fusion, ORB-SLAM3, Nav2 GNSS integration docs.
+### Data Flow
+```
+GPS Sensors ──┐
+              ├── Time Sync ──── Spatial Calibration ──── Earth Transform
+VIO System ───┘                                            │
+                                                           ├── Visualization
+Point Clouds ──── Transform ─────────────────────────────┘
+```
 
-## License
-MIT – see `LICENSE` file.
+### Key Transformations
+1. **Time Synchronization**: `t_corrected = a * t_gps + b`
+2. **Spatial Calibration**: Rigid transform via Kabsch algorithm
+3. **Coordinate Conversion**: `odom → earth` via TF2 transforms
+4. **Geodetic Projection**: ECEF ↔ WGS84 (lat/lon/alt)
 
-## Status
-Planning only. No functional code merged yet.
+## 📊 Features & Capabilities
+
+### GPS-VIO Calibration
+- Automatic time offset and drift compensation
+- Spatial alignment using point cloud registration  
+- Real-time calibration quality metrics
+- Robust outlier detection and filtering
+
+### Visualization
+- Interactive 3D Earth globe with realistic textures
+- Multi-colored GPS trajectory overlays
+- VIO trajectory and point cloud rendering
+- Adaptive camera control and trajectory following
+- RViz integration with custom marker types
+
+### Data Processing
+- Multi-format bag data extraction (CSV, JSON, KML)
+- Colorized progress bars with real-time statistics
+- Data validation and quality assessment
+- Memory-efficient processing of large datasets
+- Comprehensive logging and error reporting
+
+## 🔬 Testing & Validation
+
+Run the comprehensive test suite:
+```bash
+# Enhanced functionality tests
+python3 tests/test_extract_bag_data_enhanced.py --verbose
+
+# Performance benchmarks
+python3 tests/test_extract_bag_data_enhanced.py --benchmark
+```
+
+## 📈 Project Status
+
+**Status**: ✅ **Production Ready** - Core functionality implemented and tested
+
+### Completed Features
+- ✅ GPS-VIO time and spatial calibration
+- ✅ 3D Earth visualization with trajectory overlay
+- ✅ ROS2 bag data extraction and conversion  
+- ✅ Multi-format export (CSV, JSON, KML)
+- ✅ Comprehensive testing and validation
+- ✅ Enhanced progress tracking and logging
+
+### Future Enhancements  
+- 🔄 Real-time RTK GPS integration
+- 🔄 Advanced sensor fusion algorithms
+- 🔄 Web-based visualization interface
+- 🔄 Multi-robot coordinate system support
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support & Documentation
+
+- **Technical Issues**: Check `doc/` for troubleshooting guides
+- **Usage Examples**: See `launch/` files and script documentation  
+- **Research Background**: Review `survey/` for algorithm references
+- **System Logs**: Monitor `log/` directory for detailed execution logs
 
 ---
-Feel free to open issues with suggestions on architecture or geodetic handling approaches before implementation starts.
+
+**Built with ROS2 Humble • Python 3.10+ • OpenCV • SciPy • PyProj**

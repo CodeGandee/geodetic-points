@@ -134,7 +134,7 @@ geodetic-points/launch中的launch文件除了globe_viz.launch.py和multi_gps_vi
 
 
 
-
+chown -R 1000:1000 /home/intellif/zlc_workspace/geodetic-points
 
 
 使用geodetic-points/launch/sigle_calibration_node.launch.py只测试geodetic-points/geodetic_points/gps_vio_calibration_node.py单节点，在geodetic-points/geodetic_points/gps_vio_calibration_node.py节点中可能出现问题的地方尽量打log,同时使用一个统一的变量去管理这些log是否打印，参考/home/intellif/zlc_workspace/context/logs/code-reivew/20250903-000000-gps-vio-calibration-node-tf-publish-issue.md中的说明在points/geodetic_points/gps_vio_calibration_node.py代码中增加log
@@ -158,6 +158,39 @@ geodetic-points/launch/test_calibration_globe.launch.py中对设置记录到log�
 
 将/home/intellif/zlc_workspace/geodetic-points仓库的代码commit并提交到远端对应的分支上
 
+在@geodetic-points/launch/test_calibration_globe.launch.py中在501到564行之间的toic监控代码主要用来监控/calibration/transform_earth_odom 和/tf_static中frame_id是frame_id_earth，child_frame_id是frame_id_odom的TF及/vio/pose_earth的这三个的值，将监控的内容写到log_dir下的文件中，think more，只做更改和逻辑的判断不要尝试运行任何的代码
 
+
+在@geodetic-points/launch/test_calibration_globe.launch.py中使用单独的enable_topic_monitoring变量控制topic监控，直接写到log_dir的文件中，不要使用额外的tmp文件，这些topic主题均要记录，不要设置超时和只记录一次的，只要有都记录，think more,只做更改和逻辑的判断不要尝试运行任何的代码
+
+
+根据@/home/intellif/zlc_workspace/geodetic-points/doc/about-enable_topic_monitoring-issues.md修改@geodetic-points/launch/test_calibration_globe.launch.py，，think more,只做更改和逻辑的判断不要尝试运行任何的代码
+
+在/home/intellif/zlc_workspace/geodetic-points/geodetic_points中新写一个ros2 节点，用来监控@geodetic-points/launch/test_calibration_globe.launch.py中要监控的主题，并将这些主题同时按照pandas的格式记录到log_idr中和用loginfo记录到log_dir中，每个主题按照记录的topic的名字记录在不同的文件中，新增的topic监控的节点在@geodetic-points/launch/test_calibration_globe.launch.py中调用，替换掉现在的监控代码段，think more,只做更改和逻辑的判断不要尝试运行任何的代码
+
+
+
+
+使用/home/intellif/zlc_workspace/geodetic-points/launch/sigle_calibration_node.launch.py调用geodetic-points/launch/sigle_calibration_node.launch.py节点时，会产生很多空白的log文件，是什么原因，将发现写在geodetic-points/doc中，不要直接修改我的代码，think hard,find online
+
+
+
+
+
+
+根据 @geodetic-points/doc/topic_monitor_node_issues.md 修复 @geodetic-points/geodetic_points/topic_monitor_node.py节点，think more,修复之后使用geodetic-points/build.sh和geodetic-points/run.sh进行验证
+
+
+现在要把/home/intellif/zlc_workspace/geodetic-points/geodetic_points/gps_vio_calibration_node.py这个ros2的节点独立成一个单独的离线算法脚本，处理oddom和gps，并对最终的对齐的结果应用在odom上和gps进行可视化查看对齐的效果，其中，其次将home/intellif/zlc_workspace/geodetic-points/geodetic_points/gps_vio_calibration_node.py这个ros2的节点的算法剥离ros2环境到单独的python脚本中，并在该脚本中增加可视化的内容，先写一个plan计划到/home/intellif/zlc_workspace/geodetic-points/plan中，标明可能用到的包，并写个测试计划到home/intellif/zlc_workspace/geodetic-points/plan下
+
+按照/home/intellif/zlc_workspace/geodetic-points/plan/offline_gps_vio_calibration_plan.md中的规划
+
+
+
+将home/intellif/zlc_workspace/geodetic-points/geodetic_points/gps_vio_calibration_node.py这个ros2的节点的算法剥离ros2环境到单独的python脚本中,写到/home/intellif/zlc_workspace/geodetic-points/scripts/experiment中，用以处理从bag中预先提取的位于/home/intellif/zlc_workspace/geodetic-points/results/odom_output中的gps和odom数据，并在/home/intellif/zlc_workspace/geodetic-points/tests中写
+
+
+
+数据来自/mnt/nvme0n1/resource/rosbags/slef_bag_20250815_170837中的bag包内的 /slamware_ros_sdk_server_node/odom 和 /cbs_gnss的主题，首先写单独的脚本到/home/intellif/zlc_workspace/geodetic-points/scripts/experiment下单独处理bag包中抽取指定的主题，处理ros2 bag的算法建议参考/home/intellif/zlc_workspace/geodetic-points/scripts/bag2kml.py，要求gps抽取时间戳(精确到纳秒的ms时间)和LLA的坐标，要求odom抽取时间戳(精确到纳秒的ms时间)和pose, think more,之后再tests中编写测试代码进行脚本测试，覆盖提取主题的完整性和准确性
 
 

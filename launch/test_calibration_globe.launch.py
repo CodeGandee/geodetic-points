@@ -46,7 +46,7 @@ def set_log_level(context):
     if enable_debug.lower() == 'true':
         # Set to INFO level for detailed logging
         os.environ['RCUTILS_CONSOLE_OUTPUT_FORMAT'] = '[{severity}] [{time}] [{name}]: {message}'
-        os.environ['RCUTILS_COLORIZED_OUTPUT'] = '1'
+        # os.environ['RCUTILS_COLORIZED_OUTPUT'] = '1'
         return [SetEnvironmentVariable('RCUTILS_LOG_MIN_SEVERITY', 'INFO')]
     else:
         # Set to WARN level for minimal logging
@@ -78,6 +78,12 @@ def generate_launch_description():
         'enable_debug_logging',
         default_value='true',
         description='Enable debug logging for all nodes (true: all INFO logs, false: only WARNING and above)'
+    )
+    
+    enable_topic_monitoring_arg = DeclareLaunchArgument(
+        'enable_topic_monitoring',
+        default_value='true',
+        description='Enable continuous monitoring of calibration topics to log file'
     )
     
     calibration_timeout_arg = DeclareLaunchArgument(
@@ -281,6 +287,7 @@ def generate_launch_description():
         # Test configuration
         enable_calibration_arg,
         enable_debug_logging_arg,
+        enable_topic_monitoring_arg,
         calibration_timeout_arg,
         
         # Set log level based on enable_debug_logging parameter
@@ -430,53 +437,53 @@ def generate_launch_description():
         
         # VIO-Earth Visualization Node
         # Shows VIO data transformed to Earth coordinates using calibration
-        Node(
-            package='geodetic_points',
-            executable='vio_earth_visualization_node',
-            name='vio_earth_visualization_test',
-            remappings=[
-                ('/odom', LaunchConfiguration('odom_topic')),
-                ('/vio/points3d', LaunchConfiguration('pointcloud_topic'))
-            ],
-            parameters=[{
-                'use_sim_time': True,
-                # Frame IDs
-                'frame_id_earth': LaunchConfiguration('frame_id_earth'),
-                'frame_id_odom': LaunchConfiguration('frame_id_odom'),
-                'frame_id_base_link': 'base_link',
+        # Node(
+        #     package='geodetic_points',
+        #     executable='vio_earth_visualization_node',
+        #     name='vio_earth_visualization_test',
+        #     remappings=[
+        #         ('/odom', LaunchConfiguration('odom_topic')),
+        #         ('/vio/points3d', LaunchConfiguration('pointcloud_topic'))
+        #     ],
+        #     parameters=[{
+        #         'use_sim_time': True,
+        #         # Frame IDs
+        #         'frame_id_earth': LaunchConfiguration('frame_id_earth'),
+        #         'frame_id_odom': LaunchConfiguration('frame_id_odom'),
+        #         'frame_id_base_link': 'base_link',
                 
-                # Debug logging - enable for detailed diagnostics
-                'debug_logging': LaunchConfiguration('enable_debug_logging'),
+        #         # Debug logging - enable for detailed diagnostics
+        #         'debug_logging': LaunchConfiguration('enable_debug_logging'),
                 
-                # Transform parameters - extended timeout for testing
-                'tf_timeout_ms': 1000,  # Increased to 1s as per doc recommendations
-                'use_tf_for_transform': True,
+        #         # Transform parameters - extended timeout for testing
+        #         'tf_timeout_ms': 1000,  # Increased to 1s as per doc recommendations
+        #         'use_tf_for_transform': True,
                 
-                # Visualization parameters
-                'visualization_scale': PythonExpression(['1.0 / ', LaunchConfiguration('scale')]),
-                'max_vio_points': LaunchConfiguration('max_vio_points'),
-                'max_cloud_points': 50000,
+        #         # Visualization parameters
+        #         'visualization_scale': PythonExpression(['1.0 / ', LaunchConfiguration('scale')]),
+        #         'max_vio_points': LaunchConfiguration('max_vio_points'),
+        #         'max_cloud_points': 50000,
                 
-                # VIO visualization - more visible for testing
-                'vio.point_radius': LaunchConfiguration('vio_point_radius'),
-                'vio.trail_width': 2.0,
-                'vio.arrow_length': 10.0,
-                'vio.arrow_width': 0.5,
-                'vio.color': [0.1, 1.0, 0.1, 0.9],  # Bright green for visibility
+        #         # VIO visualization - more visible for testing
+        #         'vio.point_radius': LaunchConfiguration('vio_point_radius'),
+        #         'vio.trail_width': 2.0,
+        #         'vio.arrow_length': 10.0,
+        #         'vio.arrow_width': 0.5,
+        #         'vio.color': [0.1, 1.0, 0.1, 0.9],  # Bright green for visibility
                 
-                # Point cloud visualization
-                'cloud.point_size': 1.0,
-                'cloud.color': [0.1, 0.1, 1.0, 0.7],  # Blue
-                'cloud.downsample_factor': 10,
-                'cloud.adaptive_sizing': True,
-                'cloud.max_display_distance': 1000.0,
+        #         # Point cloud visualization
+        #         'cloud.point_size': 1.0,
+        #         'cloud.color': [0.1, 0.1, 1.0, 0.7],  # Blue
+        #         'cloud.downsample_factor': 10,
+        #         'cloud.adaptive_sizing': True,
+        #         'cloud.max_display_distance': 1000.0,
                 
-                # Performance parameters - optimized for testing
-                'visualization_rate_hz': 5.0,  # Reduced rate for testing stability
-                'point_cloud_rate_hz': 1.0
-            }],
-            output='screen'
-        ),
+        #         # Performance parameters - optimized for testing
+        #         'visualization_rate_hz': 5.0,  # Reduced rate for testing stability
+        #         'point_cloud_rate_hz': 1.0
+        #     }],
+        #     output='screen'
+        # ),
         
         # ------------------------------------------------------------------------
         # DATA REPLAY SYSTEM
@@ -494,71 +501,34 @@ def generate_launch_description():
                 '--clock'
             ],
             name='bag_player_test',
-            output='screen'
+            output='log'
         ),
         
         # ------------------------------------------------------------------------
         # MONITORING AND DEBUGGING TOOLS
         # ------------------------------------------------------------------------
         
-        # Topic Monitor (Conditional)
-        # Monitors key calibration topics and VIO earth visualization topics
-        ExecuteProcess(
-            condition=IfCondition(LaunchConfiguration('enable_debug_logging')),
-            cmd=[
-                'bash', '-c', 
-                'echo "=== GPS-VIO Calibration Test Monitor ===" && ' +
-                'echo "Monitoring calibration and visualization topics..." && ' +
-                'echo "" && ' +
-                'echo "Time sync topics:" && ' +
-                'echo "  /sync/time_difference - Current time difference (VIO - GPS)" && ' +
-                'echo "  /sync/clock_drift_rate - Clock drift in ppm" && ' +
-                'echo "  /sync/time_model - Time model parameters [a, b]" && ' +
-                'echo "  /sync/residual_error - Spatial alignment error" && ' +
-                'echo "" && ' +
-                'echo "Calibration topics:" && ' +
-                'echo "  /calibration/transform_earth_odom - Computed transform" && ' +
-                'echo "  /calibration/quality - RMS calibration error" && ' +
-                'echo "" && ' +
-                'echo "VIO-Earth Visualization topics:" && ' +
-                'echo "  /vio/pose_earth - VIO pose transformed to earth frame" && ' +
-                'echo "  /vio/points3d_earth - Point cloud in earth frame" && ' +
-                'echo "  /visualization/vio_markers - VIO trajectory markers" && ' +
-                'echo "" && ' +
-                'echo "TF topics:" && ' +
-                'echo "  /tf_static - Published earth->odom transform" && ' +
-                'echo "" && ' +
-                'echo "Use ros2 topic echo or ros2 topic hz to monitor these topics" && ' +
-                'echo "============================================"'
-            ],
-            name='topic_monitor',
-            output='screen'
-        ),
-        
-        # Monitor /vio/pose_earth topic for VIO earth transformation output
-        TimerAction(
-            period=5.0,
-            actions=[
-                ExecuteProcess(
-                    condition=IfCondition(LaunchConfiguration('enable_debug_logging')),
-                    cmd=[
-                        'bash', '-c',
-                        'echo "=== VIO Earth Pose Monitoring ===" && ' +
-                        'echo "Checking /vio/pose_earth topic..." && ' +
-                        'timeout 2s ros2 topic hz /vio/pose_earth 2>/dev/null || echo "No messages on /vio/pose_earth yet" && ' +
-                        'echo "" && ' +
-                        'echo "Checking TF tree for earth->odom transform..." && ' +
-                        'timeout 2s ros2 run tf2_ros tf2_echo earth odom 2>/dev/null || echo "earth->odom transform not yet available" && ' +
-                        'echo "" && ' +
-                        'echo "Active topics publishing:" && ' +
-                        'ros2 topic list | grep -E "(vio|calibration|sync)" | head -10 && ' +
-                        'echo "=================================="'
-                    ],
-                    name='vio_earth_monitor',
-                    output='screen'
-                )
-            ]
-        ),
+        # Topic Monitor Node
+        # Monitors key calibration topics and saves to CSV and log files
+        # Node(
+        #     package='geodetic_points',
+        #     executable='topic_monitor_node',
+        #     name='topic_monitor',
+        #     condition=IfCondition(LaunchConfiguration('enable_topic_monitoring')),
+        #     parameters=[{
+        #         'use_sim_time': True,
+        #         'log_dir': log_dir,
+        #         'topics_to_monitor': [
+        #             '/calibration/transform_earth_odom',
+        #             '/tf_static',
+        #             '/vio/pose_earth'
+        #         ],
+        #         'monitor_rate_hz': 10.0,
+        #         'buffer_size': 100,
+        #         'auto_save_interval': 10.0
+        #     }],
+        #     output='screen'
+        # ),
         
         # ------------------------------------------------------------------------
         # VISUALIZATION FRONTEND

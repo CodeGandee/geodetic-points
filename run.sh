@@ -3,9 +3,9 @@ source /opt/ros/humble/setup.bash
 source ./install/setup.bash
 # ros2 launch geodetic_points vio_gps_integration.launch.py
 
-ros2 launch geodetic_points test_calibration_globe.launch.py
+# ros2 launch geodetic_points test_calibration_globe.launch.py
 
-# ros2 launch geodetic_points sigle_calibration_node.launch.py
+ros2 launch geodetic_points sigle_calibration_node.launch.py
 
 # docker run -it \
 #     --gpus all \``
