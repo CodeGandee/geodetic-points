@@ -155,7 +155,7 @@ def generate_launch_description():
     # ============================================================================
     bag_file_arg = DeclareLaunchArgument(
         'bag_file',
-        default_value='',
+        default_value='/mnt/nvme0n1/resource/rosbags/slef_bag_20250815_170837',
         description='Path to ROS bag file for replay (leave empty to disable replay)'
     )
     
@@ -279,7 +279,8 @@ def generate_launch_description():
             cmd=[
                 'ros2', 'bag', 'play', LaunchConfiguration('bag_file'), 
                 '--rate', LaunchConfiguration('bag_rate'),
-                '--clock'  # Publish simulation time
+                '--clock',  # Publish simulation time
+                '--remap', '/cbs_gnss:=/gps/fix', '/slamware_ros_sdk_server_node/odom:=/odom','/slamware_ros_sdk_server_node/points3d:=/vio/points3d'
             ],
             name='bag_player',
             output='screen'

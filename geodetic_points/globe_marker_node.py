@@ -1,4 +1,31 @@
 #!/usr/bin/env python3
+"""
+Earth Globe Visualization Node
+
+This node provides a 3D Earth globe visualization at the origin of the earth coordinate frame.
+The globe is rendered as a textured sphere using DAE mesh format, serving as a visual reference
+for GPS and VIO trajectories in the ECEF (Earth-Centered Earth-Fixed) coordinate system.
+
+Core Functions:
+1. Publish Earth globe mesh marker at fixed position (0, 0, 0) in earth frame
+2. Optionally broadcast earth frame to TF tree
+3. Support configurable scale for different visualization scenarios
+
+Publishers:
+  /earth_globe (visualization_msgs/Marker): Earth globe mesh marker
+  /tf (tf2_msgs/TFMessage): Optional earth frame broadcast
+
+Subscribers:
+  None - This is a static visualization node
+
+Parameters:
+  mesh_resource: Path to Earth mesh file (default: package://geodetic_points/meshes/earth.dae)
+  scale: Globe radius in meters (default: 10.0)
+  frame_id: Earth coordinate frame ID (default: 'earth')
+  publish_once: Publish marker only once vs continuously (default: true)
+  publish_frequency: Publishing rate in Hz when publish_once=false (default: 0.5)
+"""
+
 import rclpy
 from rclpy.node import Node
 from visualization_msgs.msg import Marker

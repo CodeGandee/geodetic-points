@@ -90,7 +90,74 @@ geodetic-points/launch/globe_viz.launch.py这个脚本现有的功能要改变�
 
 
 
-geodetic-points/geodetic_points/gps_on_globe_node.py中
+
+
+
+
+
+
+
+
+
+将geodetic-points/geodetic_points/calibration_node.py和geodetic-points/geodetic_points/time_sync_node.py两个节点的功能合并在一起，主要做geodetic-points/doc/how-to-integrate-vio-pointcloud-ecef-visualization.md中规划的标定的工作,输出标定的时间差和刚体转换的结果
+
+将geodetic-points/geodetic_points/points_transform_node.py和geodetic-points/geodetic_points/multi_sensor_viz_node.py两个节点的功能合并在一起，主要做geodetic-points/doc/how-to-integrate-vio-pointcloud-ecef-visualization.md中规划的vio到earth的转换后里程计和点云的发布和可视化工作
+
+
+
+核对现有的geodetic-points/geodetic_points/gps_vio_calibration_node.py和geodetic-points/geodetic_points/vio_earth_visualization_node.py两个节点是否都按照geodetic-points/doc/how-to-integrate-vio-pointcloud-ecef-visualization.md的规划开发，可以做到一个节点主要做vio和earth之间的标定（R、t、时间）和另一个节点做到利用标定信息做vio点云转到earth下可视化和里程计信息在earth下的可视化，更新节点代码和开发文档，think hard,find online，ultrathink
+
+
+
+现在有的tf信息如geodetic-points/results/frames_2025-09-03_15.38.24.pdf所示，其中gps的坐标在ecef下表达（geodetic-points/geodetic_points/gps_on_globe_node.py节点发布lla转换到ecef后的坐标，frame_id=earth），现在odom和earth之间没有转换关系，希望通过vio和gps之间的刚体标定和时间同步的策略计算odom和earth之间的转换关系，进而将odom-base_link的里程计转换到earth下作为maker发布（此时同时有位置和方向信息）和作为正常topic发布，将odom下的点云转换到earch下发布,理解上述的任务，读取/home/intellif/zlc_workspace/geodetic-points/doc/how-to-integrate-vio-pointcloud-ecef-visualization.md，根据上述的任务改写该规划文档，think hard,find online
+
+
+geodetic-points/launch中的launch文件除了globe_viz.launch.py和multi_gps_viz.launch.py不变之外，其余的launch文件合并成一个launch文件，该launch文件调用了所有的node节点，注意一些参数的设定，架构上和geodetic-points/launch/globe_viz.launch.py保持一致
+
+
+/home/intellif/zlc_workspace/geodetic-points/geodetic_points/gps_vio_calibration_node.py和/home/intellif/zlc_workspace/geodetic-points/geodetic_points/vio_earth_visualization_node.py节点的功能和怎么相互配合，更新到geodetic-points/doc/how-to-integrate-vio-pointcloud-ecef-visualization.md中，think hard,find online
+
+
+其中使用geodetic-points/build.sh和geodetic-points/run.sh执行的时候，获得错误
+[vio_earth_visualization_node-4] [WARN] [1756906432.420563875] [vio_earth_visualization]: Failed to transform odometry: Lookup would require extrapolation at time 1755249149.885474, but only time 1756906410.515202 is in the buffer, when looking up transform from frame [odom] to frame [earth]
+[vio_earth_visualization_node-4] [WARN] [1756906432.525076605] [vio_earth_visualization]: Failed to transform odometry: Lookup would require extrapolation at time 1755249151.027020, but only time 1756906410.515202 is in the buffer, when looking up transform from frame [odom] to frame [earth]
+[vio_earth_visualization_node-4] [WARN] [1756906432.629546904] [vio_earth_visualization]: Failed to transform odometry: Lookup would require extrapolation at time 1755249152.061006, but only time 1756906410.515202 is in the buffer, when looking up transform from frame [odom] to frame [earth]
+[vio_earth_visualization_node-4] [WARN] [1756906432.733885402] [vio_earth_visualization]: Failed to transform odometry: Lookup would require extrapolation at time 1755249153.093763, but only time 1756906410.515202 is in the buffer, when looking up transform from frame [odom] to frame [earth]
+[vio_earth_visualization_node-4] [WARN] [1756906432.838560332] [vio_earth_visualization]: Failed to transform odometry: Lookup would require extrapolation at time 1755249154.119337, but only time 1756906410.515202 is in the buffer, when looking up transform from frame [odom] to frame [earth]
+[vio_earth_visualization_node-4] [WARN] [1756906432.943155874] [vio_earth_visualization]: Failed to transform odometry: Lookup would require extrapolation at time 1755249155.150661, but only time 1756906410.515202 is in the buffer, when looking up transform from frame [odom] to frame [earth]
+修复并验证，对rviz进行截图保存到geodetic-points/results中检查验证结果，think hard，find online，ultrathink
+
+
+
+
+先在geodetic-points/launch中像geodetic-points/launch/globe_viz.launch.py一样写一个launch文件用来测试除了geodetic-points/geodetic_points/gps_vio_calibration_node.py节点之外的剩余所有的节点，其中现在已经确定geodetic-points/launch/globe_viz.launch.py是ok的，现在主要在新的launch文件中确定geodetic-points/geodetic_points/gps_vio_calibration_node.py是能正常工作的，并且发布的主题的时间差是正常的、发布的转换关系和tf是正常的，其中构建和运行建议参考geodetic-points/build.sh和geodetic-points/run.sh
+
+
+
+
+
+
+使用geodetic-points/launch/sigle_calibration_node.launch.py只测试geodetic-points/geodetic_points/gps_vio_calibration_node.py单节点，在geodetic-points/geodetic_points/gps_vio_calibration_node.py节点中可能出现问题的地方尽量打log,同时使用一个统一的变量去管理这些log是否打印，参考/home/intellif/zlc_workspace/context/logs/code-reivew/20250903-000000-gps-vio-calibration-node-tf-publish-issue.md中的说明在points/geodetic_points/gps_vio_calibration_node.py代码中增加log
+
+
+
+在geodetic-points/launch/sigle_calibration_node.launch.py这个launch文件中监控geodetic-points/geodetic_points/gps_on_globe_node.py节点pulish的topic主题/tf_static、/calibration/transform_earth_odom、/sync/time_difference等或者其他用来帮助定位标定质量的topic的输出，其中这些topic的输出最好是输出到ROS_LOG_DIR中,直接修改节点的代码，think more
+
+根据@geodetic-points/doc/about-现象.md中发现的问题，对@geodetic-points/geodetic_points/gps_vio_calibration_node.py进行修复，think more,修复之后使用geodetic-points/build.sh和geodetic-points/run.sh进行验证
+
+
+
+
+按照@geodetic-points/doc/vio_earth_visualization_issue_report.md中的说明修改@geodetic-points/geodetic_points/vio_earth_visualization_node.py文件，think more,think a lot,只修改代码并做逻辑判断，不要运行节点
+
+
+geodetic-points/launch/test_calibration_globe.launch.py中对设置记录到log中信息的等级，debug_logging控制info的等级，如果为true，则所有的logger信息都记录，如果为false，则只记录debug以上的信息，同时将monitor_topics和debug_logging参数统一在一个参数，这个参数控制各个节点是否打印信息，在"ONITORING AND DEBUGGING TOOLS"节用来监控geodetic-points/geodetic_points/vio_earth_visualization_node.py节点的发出/vio/pose_earth主题记录到log中 ，think hard，重新组织参数和节点
+
+在@geodetic-points/geodetic_points/vio_earth_visualization_node.py中odom_callback下每次odom转换之后pose在log中打印，使用debug_logging控制打印，think more, 在其中其他地方尽量多增加log,同时检查为什么使用 @geodetic-points/launch/test_calibration_globe.launch.py启动@geodetic-points/geodetic_points/vio_earth_visualization_node.py的时候没有log立即展示在log文件中
+
+
+将/home/intellif/zlc_workspace/geodetic-points仓库的代码commit并提交到远端对应的分支上
+
 
 
 

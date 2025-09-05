@@ -1,10 +1,57 @@
 #!/usr/bin/env python3
+"""
+GPS on Globe Visualization Node
+
+This node visualizes GPS trajectories on a 3D Earth globe by transforming GPS coordinates
+(latitude/longitude/altitude) to ECEF (Earth-Centered Earth-Fixed) coordinates. It provides
+real-time trajectory visualization with adaptive marker sizing and camera control that follows
+the GPS path for optimal viewing.
+
+Core Functions:
+1. Transform GPS LLA coordinates to ECEF using pyproj or fallback implementation
+2. Visualize GPS trajectory as colored points and trail lines on Earth globe
+3. Adaptive marker sizing based on trajectory spatial extent
+4. Automatic camera positioning that follows GPS trajectory
+5. Optional ECEF coordinate and debug output publishing
+
+Publishers:
+  /gps_globe_points (visualization_msgs/Marker): GPS trajectory points as spheres
+  /gps_globe_trail (visualization_msgs/Marker): GPS trajectory as line strip
+  /gps/ecef (geometry_msgs/PointStamped): GPS position in ECEF coordinates
+  /gps/ecef_pose (geometry_msgs/PoseWithCovarianceStamped): GPS pose with covariance
+  /debug/gps_transform (std_msgs/String): Debug transformation info
+  /debug/marker_sizing (std_msgs/String): Debug marker sizing info
+  /tf (tf2_msgs/TFMessage): Camera frame transform for view control
+
+Subscribers:
+  /gps/fix (sensor_msgs/NavSatFix): GPS position fixes [configurable via gps_topic param]
+
+Parameters:
+  frame_id: Target coordinate frame (default: 'earth')
+  gps_topic: GPS input topic (default: '/gps/fix') 
+  max_points: Maximum trajectory points to keep (default: 2000)
+  point_radius_m: Base visual radius of GPS points in meters (default: 50000.0)
+  trail_width_m: Base width of trail line in meters (default: 80000.0)
+  publish_every_n: Decimation factor for high-rate GPS (default: 1)
+  scale: Scale factor for coordinates and markers (default: 1.0)
+  point_color_r/g/b: GPS point RGB color components (default: red)
+  trail_color_r/g/b: GPS trail RGB color components (default: orange)
+  enable_debug_output: Enable debug coordinate output (default: true)
+  camera_height: Camera height above GPS point (default: 100.0m)
+  camera_window_size: Points for camera center calculation (default: 10)
+  camera_min_update_distance: Min distance to update camera (default: 5.0m)
+  camera_yaw/pitch/roll: Camera orientation angles in radians
+  camera_frame_id: TF frame ID for camera (empty disables camera TF)
+  marker_calc_frequency: Frequency for marker size calculation (default: 2.0 Hz)
+  publish_ecef: Enable ECEF coordinate publishing (default: true)
+"""
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix
 from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Point, PointStamped, TransformStamped
-from std_msgs.msg import String
+from geometry_msgs.msg import Point, PointStamped, TransformStamped, PoseWithCovarianceStamped
+from std_msgs.msg import String, Header
 from collections import deque
 import tf2_ros
 from geometry_msgs.msg import TransformStamped
@@ -77,6 +124,9 @@ class GpsOnGlobeNode(Node):
         self.declare_parameter('camera_roll', 0.0)        # Camera roll angle in radians (rotation around viewing axis)
         self.declare_parameter('camera_frame_id', 'camera_view')  # TF frame ID for camera (empty string disables camera TF)
         self.declare_parameter('marker_calc_frequency', 2.0)  # Frequency for marker size calculation (Hz)
+        
+        # ECEF coordinate publishing parameters
+        self.declare_parameter('publish_ecef', True)  # Publish ECEF coordinates
 
         self.frame_id = self.get_parameter('frame_id').value
         self.max_points = int(self.get_parameter('max_points').value)
@@ -118,8 +168,9 @@ class GpsOnGlobeNode(Node):
         self.camera_frame_id = str(self.get_parameter('camera_frame_id').value)
         self.marker_calc_frequency = float(self.get_parameter('marker_calc_frequency').value)
         
+        # ECEF publishing parameters
+        self.publish_ecef = self.get_parameter('publish_ecef').value
 
-        
         # Centralized parameter logging
         self._log_initialization_parameters()
 
@@ -167,6 +218,13 @@ class GpsOnGlobeNode(Node):
         self.pub_points = self.create_publisher(Marker, 'gps_globe_points', 1)
         self.pub_trail = self.create_publisher(Marker, 'gps_globe_trail', 1)
         
+        # ECEF coordinate publishers (following ROS best practices)
+        if self.publish_ecef:
+            self.pub_ecef_point = self.create_publisher(PointStamped, 'gps/ecef', 10)
+            self.pub_ecef_pose = self.create_publisher(PoseWithCovarianceStamped, 'gps/ecef_pose', 10)
+            self.get_logger().info(f"ECEF coordinates will be published on /gps/ecef (frame: {self.frame_id})")
+            self.get_logger().info("ECEF pose with covariance will be published on /gps/ecef_pose")
+        
         # Debug publishers for coordinate transformation
         if self.enable_debug_output:
             self.pub_debug_ecef_transformed = self.create_publisher(PointStamped, 'debug/gps_ecef_transformed', 10)
@@ -207,9 +265,20 @@ class GpsOnGlobeNode(Node):
         self.get_logger().info(f"                Roll: {self.camera_roll:.4f} rad ({math.degrees(self.camera_roll):.1f}°)")
         self.get_logger().info(f"Camera Frame ID: {self.camera_frame_id} {'(camera TF disabled)' if not self.camera_frame_id else ''}")
         self.get_logger().info(f"Marker Calc Frequency: {self.marker_calc_frequency} Hz")
+        
+        # ECEF publishing status
+        self.get_logger().info("=== ECEF Coordinate Publishing ===")
+        if self.publish_ecef:
+            self.get_logger().info(f"ECEF Publishing: ENABLED (frame: {self.frame_id})")
+            self.get_logger().info("  Standard Topics:")
+            self.get_logger().info("  - /gps/ecef (PointStamped): Raw ECEF coordinates [m]")
+            self.get_logger().info("  - /gps/ecef_pose (PoseWithCovarianceStamped): ECEF pose with uncertainty")
+        else:
+            self.get_logger().info("ECEF Publishing: DISABLED (set publish_ecef_coordinates:=true to enable)")  
+        
         if self.enable_debug_output:
-            self.get_logger().info("Debug Topics:")
-            self.get_logger().info("  - /debug/gps_ecef_transformed (PointStamped): Transformed ECEF coordinates")
+            self.get_logger().info("=== Debug Topics ===")
+            self.get_logger().info("  - /debug/gps_ecef_transformed (PointStamped): Scaled ECEF coordinates")
             self.get_logger().info("  - /debug/gps_transform_info (String): Transformation details")
         self.get_logger().info("=========================================")
         
@@ -557,6 +626,10 @@ class GpsOnGlobeNode(Node):
         camera_updated = self.update_camera_center(scaled_point)
         self.has_gps_fix = True
         
+        # Publish ECEF coordinates (following ROS best practices)
+        if self.publish_ecef:
+            self.publish_ecef_coordinates_standard(msg, x, y, z)
+        
         # Publish debug information if enabled
         if self.enable_debug_output:
             self.publish_debug_coordinates(msg, x, y, z, x_scaled, y_scaled, z_scaled)
@@ -619,6 +692,62 @@ class GpsOnGlobeNode(Node):
         m.color.b = self.trail_color_b
         m.points = [Point(x=p[0], y=p[1], z=p[2]) for p in self.points_ecef]
         self.pub_trail.publish(m)
+    
+    def publish_ecef_coordinates_standard(self, original_msg: NavSatFix, x_ecef: float, y_ecef: float, z_ecef: float):
+        """Publish ECEF coordinates using standard ROS message types and practices"""
+        try:
+            # Publish raw ECEF coordinates as PointStamped (standard practice)
+            ecef_point = PointStamped()
+            ecef_point.header.stamp = original_msg.header.stamp
+            ecef_point.header.frame_id = self.frame_id
+            ecef_point.point.x = x_ecef
+            ecef_point.point.y = y_ecef
+            ecef_point.point.z = z_ecef
+            
+            self.pub_ecef_point.publish(ecef_point)
+            # Optionally publish PoseWithCovarianceStamped for localization systems
+            ecef_pose = PoseWithCovarianceStamped()
+            ecef_pose.header.stamp = original_msg.header.stamp
+            ecef_pose.header.frame_id = self.frame_id
+            
+            # Position
+            ecef_pose.pose.pose.position.x = x_ecef
+            ecef_pose.pose.pose.position.y = y_ecef
+            ecef_pose.pose.pose.position.z = z_ecef
+            
+            # Orientation (identity quaternion - GPS provides no orientation)
+            ecef_pose.pose.pose.orientation.x = 0.0
+            ecef_pose.pose.pose.orientation.y = 0.0
+            ecef_pose.pose.pose.orientation.z = 0.0
+            ecef_pose.pose.pose.orientation.w = 1.0
+            
+            # Covariance matrix (6x6 for pose: x,y,z,roll,pitch,yaw)
+            # Convert GPS covariance from ENU to ECEF (approximation)
+            if hasattr(original_msg, 'position_covariance') and len(original_msg.position_covariance) >= 9:
+                # Use GPS covariance if available (3x3 position covariance)
+                gps_cov = original_msg.position_covariance
+                # Map ENU covariance to ECEF (simplified mapping)
+                ecef_pose.pose.covariance[0] = gps_cov[0]  # x variance
+                ecef_pose.pose.covariance[7] = gps_cov[4]  # y variance  
+                ecef_pose.pose.covariance[14] = gps_cov[8] # z variance
+                ecef_pose.pose.covariance[1] = ecef_pose.pose.covariance[6] = gps_cov[1]  # xy covariance
+                ecef_pose.pose.covariance[2] = ecef_pose.pose.covariance[12] = gps_cov[2] # xz covariance
+                ecef_pose.pose.covariance[8] = ecef_pose.pose.covariance[13] = gps_cov[5] # yz covariance
+            else:
+                # Default covariance for GPS (assume 3m horizontal, 5m vertical accuracy)
+                ecef_pose.pose.covariance[0] = 9.0   # x variance (3m std)
+                ecef_pose.pose.covariance[7] = 9.0   # y variance (3m std)
+                ecef_pose.pose.covariance[14] = 25.0 # z variance (5m std)
+            
+            # Set high uncertainty for orientation (GPS provides no orientation)
+            ecef_pose.pose.covariance[21] = 1000.0  # roll variance (large)
+            ecef_pose.pose.covariance[28] = 1000.0  # pitch variance (large)
+            ecef_pose.pose.covariance[35] = 1000.0  # yaw variance (large)
+            
+            self.pub_ecef_pose.publish(ecef_pose)
+                
+        except Exception as e:
+            self.get_logger().warn(f"Failed to publish ECEF coordinates: {e}")
     
     def publish_debug_coordinates(self, original_msg, x_ecef, y_ecef, z_ecef, x_scaled, y_scaled, z_scaled):
         """Publish debug information about coordinate transformation"""
